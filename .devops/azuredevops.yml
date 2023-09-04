@@ -1,0 +1,53 @@
+parameters:
+  - name: force_deploy
+    type: boolean
+    default: false
+    displayName: 'Force deploy'
+  - name: pool
+    displayName: 'Pool'
+    type: string
+    default: 'Self-hosted'
+    values:
+      - 'Azure Pipelines'
+      - 'Self-hosted'
+
+trigger:
+  tags:
+    include:
+      - '*'
+  branches:
+    include:
+      - release/*
+      - hotfix/*
+
+pr:
+  branches:
+    include:
+      - main
+
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: Gateway/paybyrd-deployment
+      ref: refs/tags/4.0.1
+
+variables:
+  - template: 'vars/variables.Build.yml'
+
+stages:
+  - template: versioning/prepare.yml@templates
+    parameters:
+      pool: ${{ parameters.pool }}
+
+  - template: library/csharp/linux/build.yml@templates
+    parameters:
+      artifact_name: '${{ variables.artifact_name }}-linux'
+      projects: 'src/**/*.csproj'
+      run_tests: true
+      pool: ${{ parameters.pool }}
+
+  - template: nuget/linux/deploy.yml@templates
+    parameters:
+      artifact_name: '${{ variables.artifact_name }}-linux'
+      pool: ${{ parameters.pool }}
